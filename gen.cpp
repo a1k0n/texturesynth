@@ -23,6 +23,8 @@ unsigned nn_diff(int dstx, int dsty, int srcx, int srcy, int Nsize)
 		int sy = (srch+srcy+j)%srch;
 		int dy = (dsth+dsty+j)%dsth;
 		for(int i=-Nsize;i<=Nsize;i++) {
+			if(i == 0 && j == 0)
+				continue;
 			int sx = (srcw+srcx+i)%srcw;
 			int dx = (dstw+dstx+i)%dstw;
 			int s = SRC(sx,sy);
@@ -61,8 +63,8 @@ int main()
 	printf("loaded %dx%d source\n", srcw, srch);
 
 	// gen
-	dstw = 128;
-	dsth = 128;
+	dstw = 64;
+	dsth = 64;
 	dstim_rgb = new unsigned[dstw*dsth];
 
 	for(int j=0;j<dsth;j++)
@@ -75,7 +77,7 @@ int main()
 		for(int j=0;j<dsth;j++) {
 			for(int i=0;i<dstw;i++) {
 				int x=0,y=0;
-				err += nn_search(i,j, x,y, 3);
+				err += nn_search(i,j, x,y, 4);
 				DST(i,j) = SRC(x,y);
 			}
 		}
