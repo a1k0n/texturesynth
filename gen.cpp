@@ -56,6 +56,29 @@ unsigned nn_search(int dstx, int dsty, int &srcx, int &srcy, int Nsize)
 	return bestdiff;
 }
 
+void gen_init(int offset)
+{
+	for(int j=offset;j<dsth;j++)
+		for(int i=offset;i<dstw;i++) {
+			int x = rand()%srcw;
+			int y = rand()%srch;
+			DST(i,j) = SRC(x,y);
+		}
+}
+
+unsigned gen_step(int offset)
+{
+	unsigned err = 0;
+	for(int j=offset;j<dsth;j++) {
+		for(int i=offset;i<dstw;i++) {
+			int x=0,y=0;
+			err += nn_search(i,j, x,y, 4);
+			DST(i,j) = SRC(x,y);
+		}
+	}
+	return err;
+}
+
 int main()
 {
 	srand(time(NULL));
@@ -63,29 +86,21 @@ int main()
 	printf("loaded %dx%d source\n", srcw, srch);
 
 	// gen
-	dstw = 64;
-	dsth = 64;
+	dstw = 32;
+	dsth = 32;
 	dstim_rgb = new unsigned[dstw*dsth];
 
-	for(int j=0;j<dsth;j++)
-		for(int i=0;i<dstw;i++)
-			DST(i,j) = rand()&0xffffff;
-
-	for(int iterations=0;iterations<10;iterations++) {
-		printf("gen iteration %d: ", iterations); fflush(stdout);
-		unsigned err = 0;
-		for(int j=0;j<dsth;j++) {
-			for(int i=0;i<dstw;i++) {
-				int x=0,y=0;
-				err += nn_search(i,j, x,y, 4);
-				DST(i,j) = SRC(x,y);
-			}
+	for(int version=0;version<8;version++) {
+		gen_init(version==0 ? 0 : 2);
+		for(int iterations=0;iterations<10;iterations++) {
+			printf("ver %d iteration %d: ", version, iterations); fflush(stdout);
+			printf("%u\n", gen_step(version==0 ? 0 : 2));
 		}
-		printf("%u\n", err);
+
+		char buf[20];
+		sprintf(buf, "out%d.png", version);
+		save_png_rgb(buf, dstim_rgb, dstw, dsth);
 	}
-
-
-	save_png_rgb("out.png", dstim_rgb, dstw, dsth);
 
 	return 0;
 }
