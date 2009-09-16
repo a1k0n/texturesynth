@@ -1,4 +1,4 @@
-CXXFLAGS = -I/opt/local/include
+CXXFLAGS = -I/opt/local/include -Wall -O3 -g
 LDFLAGS = -L/opt/local/lib -lgd
 
 SRCS = gen.cpp
