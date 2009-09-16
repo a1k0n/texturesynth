@@ -11,7 +11,7 @@ gen: $(OBJS)
 .PHONY: clean run
 
 clean::
-	rm -f gen *.o
+	rm -f gen *.o out.png
 
 run:: gen
 	./gen && open out.png
