@@ -13,7 +13,7 @@ int srcw, srch, dstw, dsth;
 // number of seam-rows to keep constant between different interchangable tiles
 #define KEEPROWS 2
 // generator iterations
-#define ITERATIONS 16
+#define ITERATIONS 8
 
 #define SRC(i,j) srcim_rgb[(i)+(j)*srcw]
 #define DST(i,j) dstim_rgb[(i)+(j)*dstw]
@@ -101,10 +101,14 @@ unsigned gen_step(int offset)
 	return err;
 }
 
-int main()
+int main(int argc, char **argv)
 {
+	if(argc < 2) {
+		printf("usage: %s <source image>\n", argv[0]);
+		return -1;
+	}
 	srand(time(NULL));
-	srcim_rgb = load_png_rgb("in.png", srcw, srch);
+	srcim_rgb = load_png_rgb(argv[1], srcw, srch);
 	printf("loaded %dx%d source\n", srcw, srch);
 
 	// gen
@@ -115,13 +119,15 @@ int main()
 	for(int version=0;version<8;version++) {
 		gen_init(version==0 ? 0 : KEEPROWS);
 		for(int iterations=0;iterations<ITERATIONS;iterations++) {
-			printf("ver %d iteration %d: ", version, iterations); fflush(stdout);
-			printf("%u\n", gen_step(version==0 ? 0 : KEEPROWS));
+			printf("\rout%d.png iteration %d/%d: ", version, 1+iterations, ITERATIONS);
+			fflush(stdout);
+			printf("%u\e[K", gen_step(version==0 ? 0 : KEEPROWS));
 		}
 
 		char buf[20];
 		sprintf(buf, "out%d.png", version);
 		save_png_rgb(buf, dstim_rgb, dstw, dsth);
+		printf(" done\n");
 	}
 
 	return 0;

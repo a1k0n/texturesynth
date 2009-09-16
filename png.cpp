@@ -1,8 +1,13 @@
 #include <gd.h>
+#include <stdlib.h>
 
 unsigned *load_png_rgb(const char *fname, int &w, int &h)
 {
 	FILE *fp = fopen(fname, "rb");
+	if(!fp) {
+		printf("can't open %s\n", fname);
+		exit(-1);
+	}
 	gdImagePtr im = gdImageCreateFromPng(fp);
 	fclose(fp);
 
