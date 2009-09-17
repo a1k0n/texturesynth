@@ -1,13 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include "png.h"
+#include "img.h"
 
 unsigned *dstim_rgb, *srcim_rgb;
 int srcw, srch, dstw, dsth;
 
-// define this iff your source texture tiles cleanly
-#define SRCWRAP
 // neighborhood for synthesis
 #define NEIGHBORHOOD 4
 // number of seam-rows to keep constant between different interchangable tiles
@@ -15,9 +13,7 @@ int srcw, srch, dstw, dsth;
 // generator iterations
 #define ITERATIONS 8
 
-#define SRC(i,j) srcim_rgb[(i)+(j)*srcw]
-#define DST(i,j) dstim_rgb[(i)+(j)*dstw]
-
+// neighborhood difference
 // Nsize is the radius of pixels surrounding the source pixel.  
 // e.g. Nsize=2:
 // N N N N N
@@ -25,111 +21,92 @@ int srcw, srch, dstw, dsth;
 // N N p N N
 // N N N N N
 // N N N N N
-unsigned nn_diff(int dstx, int dsty, int srcx, int srcy, int Nsize)
+unsigned neighbor_diff(Img *im1, Img *im2, int x1, int y1, int x2, int y2, int Nsize)
 {
-	unsigned diff=0;
-	for(int j=-Nsize;j<=Nsize;j++) {
-#ifdef SRCWRAP
-		int sy = (srch+srcy+j)%srch;
-#else
-		int sy = srcy+j;
-#endif
-		int dy = (dsth+dsty+j)%dsth;
-		for(int i=-Nsize;i<=Nsize;i++) {
-			if(i == 0 && j == 0)
-				continue;
-#ifdef SRCWRAP
-			int sx = (srcw+srcx+i)%srcw;
-#else
-			int sx = srcx+i;
-#endif
-			int dx = (dstw+dstx+i)%dstw;
-			int s = SRC(sx,sy);
-			int d = DST(dx,dy);
-			int dr = (s>>16) - (d>>16);
-			int dg = ((s>>8)&255) - ((d>>8)&255);
-			int db = (s&255) - (d&255);
-			diff += dr*dr + dg*dg + db*db;
-		}
-	}
-	return diff;
+  unsigned diff=0;
+  for(int j=-Nsize;j<=Nsize;j++) {
+    int j1 = im1->wraph(j+y1);
+    int j2 = im2->wraph(j+y2);
+    for(int i=-Nsize;i<=Nsize;i++) {
+      int i1 = im1->wrapw(i+x1);
+      int i2 = im2->wrapw(i+x2);
+      diff += Img::normsqr(im1->p(i1,j1), im2->p(i2,j2));
+    }
+  }
+  return diff;
 }
 
-// find src x,y with closest neighborhood to dst x,y
-// this is, right now, a terrible brute-force search
-unsigned nn_search(int dstx, int dsty, int &srcx, int &srcy, int Nsize)
+// find nearest neighborhood in srcim corresponding to a given block in dstim
+// returns an index
+unsigned nn_search(Img *srcim, Img *dstim, int di, int dj, int Nsize, bool srcwrap, unsigned &e)
 {
-	unsigned bestdiff = ~0;
-#ifdef SRCWRAP
-	for(int y=0;y<srch;y++) {
-		for(int x=0;x<srcw;x++) {
-#else
-	for(int y=Nsize;y<srch-Nsize;y++) {
-		for(int x=Nsize;x<srcw-Nsize;x++) {
-#endif
-			unsigned diff = nn_diff(dstx,dsty, x,y, Nsize);
-			if(diff < bestdiff) {
-				bestdiff = diff;
-				srcx = x;
-				srcy = y;
-			}
-		}
-	}
-	return bestdiff;
+  unsigned bestdiff = ~0;
+  unsigned bestidx = 0;
+  int inset = srcwrap ? 0 : Nsize;
+  for(int y=inset; y < srcim->h - inset; y++) {
+    for(int x=inset; x < srcim->w - inset; x++) {
+      unsigned diff = neighbor_diff(srcim, dstim, x,y, di,dj, Nsize);
+      if(diff < bestdiff) {
+        bestdiff = diff;
+        bestidx = srcim->ij_to_idx(x,y);
+      }
+    }
+  }
+  e = bestdiff;
+  return bestidx;
 }
 
-void gen_init(int offset)
+void gen_init(Img *srcim, Img *dstim, int offset)
 {
-	for(int j=offset;j<dsth;j++)
-		for(int i=offset;i<dstw;i++) {
-			int x = rand()%srcw;
-			int y = rand()%srch;
-			DST(i,j) = SRC(x,y);
-		}
+  for(int j=offset;j<dstim->h;j++)
+    for(int i=offset;i<dstim->w;i++) {
+      int x = rand()%srcim->w;
+      int y = rand()%srcim->h;
+      dstim->p(i,j) = srcim->p(x,y);
+    }
 }
 
-unsigned gen_step(int offset)
+unsigned gen_step(Img *srcim, Img *dstim, int offset, bool srcwrap)
 {
-	unsigned err = 0;
-	for(int j=offset;j<dsth;j++) {
-		for(int i=offset;i<dstw;i++) {
-			int x=0,y=0;
-			err += nn_search(i,j, x,y, NEIGHBORHOOD);
-			DST(i,j) = SRC(x,y);
-		}
-	}
-	return err;
+  unsigned E = 0;
+  for(int j=offset;j<dstim->h;j++) {
+    for(int i=offset;i<dstim->w;i++) {
+      unsigned e;
+      dstim->p(i,j) = srcim->p(nn_search(srcim, dstim, i,j, NEIGHBORHOOD, srcwrap, e));
+      E += e;
+    }
+  }
+  return E;
 }
 
 int main(int argc, char **argv)
 {
-	if(argc < 2) {
-		printf("usage: %s <source image>\n", argv[0]);
-		return -1;
-	}
-	srand(time(NULL));
-	srcim_rgb = load_png_rgb(argv[1], srcw, srch);
-	printf("loaded %dx%d source\n", srcw, srch);
+  if(argc < 2) {
+    printf("usage: %s <source image>\n", argv[0]);
+    return -1;
+  }
+  srand(time(NULL));
 
-	// gen
-	dstw = 32;
-	dsth = 32;
-	dstim_rgb = new unsigned[dstw*dsth];
+  Img *srcim = Img::load_png(argv[1]);
+  printf("loaded %dx%d source\n", srcim->w, srcim->h);
 
-	for(int version=0;version<8;version++) {
-		gen_init(version==0 ? 0 : KEEPROWS);
-		for(int iterations=0;iterations<ITERATIONS;iterations++) {
-			printf("\rout%d.png iteration %d/%d: ", version, 1+iterations, ITERATIONS);
-			fflush(stdout);
-			printf("%u\e[K", gen_step(version==0 ? 0 : KEEPROWS));
-		}
+  // gen
+  Img *dstim = new Img(32, 32);
 
-		char buf[20];
-		sprintf(buf, "out%d.png", version);
-		save_png_rgb(buf, dstim_rgb, dstw, dsth);
-		printf(" done\n");
-	}
+  for(int version=0;version<8;version++) {
+    gen_init(srcim, dstim, version==0 ? 0 : KEEPROWS);
+    for(int iterations=0;iterations<ITERATIONS;iterations++) {
+      printf("\rout%d.png iteration %d/%d: ", version, 1+iterations, ITERATIONS);
+      fflush(stdout);
+      printf("%u\e[K", gen_step(srcim, dstim, version==0 ? 0 : KEEPROWS, true));
+    }
 
-	return 0;
+    char buf[20];
+    sprintf(buf, "out%d.png", version);
+    dstim->save_png(buf);
+    printf(" done\n");
+  }
+
+  return 0;
 }
 

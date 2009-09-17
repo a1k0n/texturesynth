@@ -6,7 +6,7 @@ SRCS = $(wildcard *.cpp)
 OBJS = $(SRCS:.cpp=.o)
 
 gen: $(OBJS)
-	g++ $(LDFLAGS) -o gen $(OBJS)
+	g++ -o gen $(OBJS) $(LDFLAGS)
 
 .PHONY: clean
 
