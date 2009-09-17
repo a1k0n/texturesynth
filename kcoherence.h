@@ -1,15 +1,15 @@
 template<int N>
-class Kcluster
+class Kcoherence
 {
 public:
   unsigned _idx[N];
   unsigned _err[N];
   int n;
 
-  Kcluster() { n=0; }
+  Kcoherence() { n=0; }
   void insert(unsigned idx, unsigned err) {
     // error is already greater than any member
-    if(n>0 && err > _err[n-1])
+    if(n==N && err > _err[n-1])
       return;
     if(n<N) n++;
     _idx[n-1] = idx;
@@ -23,5 +23,7 @@ public:
       }
     }
   }
+
+  unsigned operator[](int n) const { return _idx[n]; }
 };
 
