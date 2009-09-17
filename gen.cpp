@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "img.h"
-
-unsigned *dstim_rgb, *srcim_rgb;
-int srcw, srch, dstw, dsth;
+#include "kcluster.h"
 
 // neighborhood for synthesis
 #define NEIGHBORHOOD 4
