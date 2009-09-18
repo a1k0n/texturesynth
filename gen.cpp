@@ -5,7 +5,7 @@
 #include "kcoherence.h"
 
 // neighborhood for synthesis
-#define NEIGHBORHOOD 4
+#define NEIGHBORHOOD 2
 // number of seam-rows to keep constant between different interchangable tiles
 #define KEEPROWS 2
 // generator iterations
@@ -99,8 +99,9 @@ public:
   {
     printf("analyzing source img..."); fflush(stdout);
     srck = new Kcoherence<K>[srcim->w*srcim->h];
-    for(int j=0;j<srcim->h;j++)
-      for(int i=0;i<srcim->w;i++) {
+    int inset = srcwrap ? 0 : Nsize;
+    for(int j=inset;j<srcim->h-inset;j++)
+      for(int i=inset;i<srcim->w-inset;i++) {
         int idx = srcim->ij_to_idx(i,j);
         srck[idx] = ::nn_search(srcim, i,j, Nsize, srcwrap);
       }
@@ -156,6 +157,7 @@ public:
 
   unsigned mstep(int offset) {
     unsigned E=0;
+    bool changed = false;
     for(int j=offset;j<dstim->h;j++)
       for(int i=offset;i<dstim->w;i++) {
         // search k set of all neighborhood pixels to find best matching
@@ -164,11 +166,17 @@ public:
         for(int nj=-Nsize;nj<=Nsize;nj++)
           for(int ni=-Nsize;ni<=Nsize;ni++) {
             int x=dstim->wrapw(i+ni), y=dstim->wraph(j+nj);
-            nn_search(dstim, i,j, srck[dsto->p(x,y)], -ni,-nj, bestdiff, bestidx);
+            nn_search(dstim, i,j, srck[dsto->p(x,y)], ni,nj, bestdiff, bestidx);
           }
         E += bestdiff;
-        dstz->p(i,j) = bestidx;
+        if(dstz->p(i,j) != bestidx) {
+          changed = true;
+          dstz->p(i,j) = bestidx;
+        }
+        //dstim->p(i,j) = srcim->p(bestidx);
       }
+    if(!changed)
+      return 0;
     return E;
   }
 
@@ -193,8 +201,10 @@ int main(int argc, char **argv)
     for(int iterations=0;iterations<ITERATIONS;iterations++) {
       printf("\rout%d.png iteration %d/%d: E:", version, 1+iterations, ITERATIONS);
       printf("%u M:", synth.estep(version==0 ? 0 : KEEPROWS));
-      printf("%u\e[K", synth.mstep(version==0 ? 0 : KEEPROWS));
+      unsigned e = synth.mstep(version==0 ? 0 : KEEPROWS);
+      printf("%u\e[K", e);
       fflush(stdout);
+      if(!e) break;
     }
     char buf[20];
     sprintf(buf, "out%d.png", version);
