@@ -5,13 +5,13 @@
 #include "kcoherence.h"
 
 // neighborhood for synthesis
-#define NEIGHBORHOOD 2
+#define NEIGHBORHOOD 4
 // number of seam-rows to keep constant between different interchangable tiles
-#define KEEPROWS 2
+#define KEEPROWS 4
 // maximum generator iterations
-#define ITERATIONS 40
+#define ITERATIONS 8 //40
 // k-coherence search size
-#define _K_ 5
+#define _K_ 11
 
 // neighborhood difference
 // Nsize is the radius of pixels surrounding the source pixel.  
@@ -123,7 +123,7 @@ public:
         dstz->p(i,j) = srcim->ij_to_idx(x,y);
         x = rand()%srcim->w;
         y = rand()%srcim->h;
-        dsto->p(i,j) = srcim->ij_to_idx(x,y);
+        //dsto->p(i,j) = srcim->ij_to_idx(x,y);
         dstim->p(i,j) = srcim->p(x,y);
       }
   }
@@ -142,7 +142,7 @@ public:
         continue;
       if(!srcwrap && j<Nsize || j>=srcim->h-Nsize)
         continue;
-      unsigned diff = neighbor_diff(srcim, srcim, i,j, di,dj, Nsize);
+      unsigned diff = neighbor_diff(destim, srcim, di,dj, i,j, Nsize);
       if(diff < bestdiff) {
         bestdiff = diff;
         bestidx = srcim->ij_to_idx(i,j);
@@ -181,12 +181,13 @@ public:
             int x=dstim->wrapw(i+ni), y=dstim->wraph(j+nj);
             nn_search(dstim, i,j, srck[dstz->p(x,y)], -ni,-nj, bestdiff, bestidx);
           }
+
         E += bestdiff;
         if(dstz->p(i,j) != bestidx) {
           changed = true;
           dstz->p(i,j) = bestidx;
         }
-        //dstim->p(i,j) = srcim->p(bestidx);
+        dstim->p(i,j) = srcim->p(bestidx);
       }
     if(!changed)
       return 0;
@@ -219,6 +220,7 @@ int main(int argc, char **argv)
       fflush(stdout);
       if(!e) break;
     }
+    printf(" final err: %d", synth.estep(version==0 ? 0 : KEEPROWS));
     char buf[20];
     sprintf(buf, "out%d.png", version);
     synth.dstim->save_png(buf);
