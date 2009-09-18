@@ -36,6 +36,7 @@ unsigned neighbor_diff(Img *im1, Img *im2, int x1, int y1, int x2, int y2, int N
   return diff;
 }
 
+#if 0
 // find nearest neighborhood in srcim corresponding to a given block in dstim
 // returns an index
 unsigned nn_search(Img *srcim, Img *dstim, int di, int dj, int Nsize, bool srcwrap, unsigned &e)
@@ -55,7 +56,7 @@ unsigned nn_search(Img *srcim, Img *dstim, int di, int dj, int Nsize, bool srcwr
   e = bestdiff;
   return bestidx;
 }
-
+#endif
 
 
 // find nearest
@@ -65,8 +66,8 @@ Kcoherence<_K_> nn_search(Img *srcim, int si, int sj, int Nsize, bool srcwrap)
   Kcoherence<_K_> best;
   for(int y=inset; y < srcim->h - inset; y++) {
     for(int x=inset; x < srcim->w - inset; x++) {
-      if(x == si && y == sj)
-        continue;
+      //if(x == si && y == sj)
+      //  continue;
       unsigned diff = neighbor_diff(srcim, srcim, x,y, si,sj, Nsize);
       best.insert(srcim->ij_to_idx(x,y), diff);
     }
@@ -142,10 +143,10 @@ public:
         unsigned bestdiff = ~0, bestidx = 0;
 
         // x,y are the target patch (in the z array)
-        int x,y; srcim->idx_to_ij(dstz->p(i,j),x,y);
+        //int x,y; srcim->idx_to_ij(dstz->p(i,j),x,y);
 
         // we search our candidate set k from the pixel's current source
-        nn_search(srcim, x,y, srck[dsto->p(i,j)], 0,0, bestdiff, bestidx);
+        nn_search(dstim, i,j, srck[dstz->p(i,j)], 0,0, bestdiff, bestidx);
         E += bestdiff;
         dstim->p(i,j) = srcim->p(bestidx);
         dsto->p(i,j) = bestidx;
