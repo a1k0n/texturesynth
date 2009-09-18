@@ -8,10 +8,10 @@
 #define NEIGHBORHOOD 2
 // number of seam-rows to keep constant between different interchangable tiles
 #define KEEPROWS 2
-// generator iterations
+// maximum generator iterations
 #define ITERATIONS 40
 // k-coherence search size
-#define _K_ 11
+#define _K_ 5
 
 // neighborhood difference
 // Nsize is the radius of pixels surrounding the source pixel.  
@@ -91,7 +91,7 @@ public:
     dstz = new Img(dstx, dsty);
     dsto = new Img(dstx, dsty);
     srcwrap = _srcwrap;
-    Nsize = _srcwrap;
+    Nsize = _Nsize;
     analyze_srcimg();
   }
 
@@ -104,6 +104,13 @@ public:
       for(int i=inset;i<srcim->w-inset;i++) {
         int idx = srcim->ij_to_idx(i,j);
         srck[idx] = ::nn_search(srcim, i,j, Nsize, srcwrap);
+#if 0
+        printf("%d: ", idx);
+        for(int k=0;k<srck[idx].n;k++) {
+          printf("%d(%d)%s", srck[idx]._idx[k], srck[k]._err[k], k==K-1?"":",");
+        }
+        printf("\n");
+#endif
       }
     printf("done\n");
   }
@@ -129,7 +136,13 @@ public:
     for(int k=0;k<kset.n;k++) {
       int i,j;
       srcim->idx_to_ij(kset[k],i,j);
-      unsigned diff = neighbor_diff(srcim, srcim, i+offx,j+offy, di,dj, Nsize);
+      i = srcim->wrapw(i+offx);
+      j = srcim->wraph(j+offy);
+      if(!srcwrap && i<Nsize || i>=srcim->w-Nsize)
+        continue;
+      if(!srcwrap && j<Nsize || j>=srcim->h-Nsize)
+        continue;
+      unsigned diff = neighbor_diff(srcim, srcim, i,j, di,dj, Nsize);
       if(diff < bestdiff) {
         bestdiff = diff;
         bestidx = srcim->ij_to_idx(i,j);
@@ -150,7 +163,7 @@ public:
         nn_search(dstim, i,j, srck[dstz->p(i,j)], 0,0, bestdiff, bestidx);
         E += bestdiff;
         dstim->p(i,j) = srcim->p(bestidx);
-        dsto->p(i,j) = bestidx;
+        dstz->p(i,j) = bestidx;
       }
     return E;
   }
@@ -166,7 +179,7 @@ public:
         for(int nj=-Nsize;nj<=Nsize;nj++)
           for(int ni=-Nsize;ni<=Nsize;ni++) {
             int x=dstim->wrapw(i+ni), y=dstim->wraph(j+nj);
-            nn_search(dstim, i,j, srck[dsto->p(x,y)], ni,nj, bestdiff, bestidx);
+            nn_search(dstim, i,j, srck[dstz->p(x,y)], -ni,-nj, bestdiff, bestidx);
           }
         E += bestdiff;
         if(dstz->p(i,j) != bestidx) {
