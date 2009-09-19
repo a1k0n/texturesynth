@@ -8,6 +8,8 @@
 #define ITERATIONS 16
 // k-coherence search size
 #define _K_ 6
+// number of similar versions to generate
+#define VERSIONS 8
 
 // neighborhood difference
 // Nsize is the radius of pixels surrounding the source pixel.  
@@ -20,14 +22,27 @@
 unsigned neighbor_diff(Img *im1, Img *im2, int x1, int y1, int x2, int y2, int Nsize)
 {
   unsigned diff=0;
-  for(int j=-Nsize;j<=Nsize;j++) {
-    int j1 = im1->wraph(j+y1);
-    int j2 = im2->wraph(j+y2);
-    for(int i=-Nsize;i<=Nsize;i++) {
-      int i1 = im1->wrapw(i+x1);
-      int i2 = im2->wrapw(i+x2);
-      diff += Img::normsqr(im1->p(i1,j1), im2->p(i2,j2));
+  int j1 = im1->wraph(y1-Nsize);
+  int j2 = im2->wraph(y2-Nsize);
+  int i1 = im1->wrapw(x1-Nsize);
+  int i2 = im2->wrapw(x2-Nsize);
+  int ywrap1 = im1->h - j1;
+  int ywrap2 = im2->h - j2;
+  for(int j=Nsize*2+1;j--;) {
+    int idx1 = i1 + j1*im1->w;
+    int idx2 = i2 + j2*im2->w;
+    int xwrap1 = im1->w - i1;
+    int xwrap2 = im2->w - i2;
+    //printf("xy1=%d,%d xy2=%d,%d ij1=%d,%d ij2=%d,%d\n", x1,y1, x2,y2, i1,j2, i2,j2);
+    for(int i=Nsize*2+1;i--;) {
+      //printf("idx1=%d idx2=%d\n", idx1, idx2);
+      diff += Img::normsqr(im1->p(idx1++), im2->p(idx2++));
+      xwrap1--; if(!xwrap1) { idx1 -= im1->w; }
+      xwrap2--; if(!xwrap2) { idx2 -= im2->w; }
     }
+    j1++; j2++;
+    ywrap1--; if(!ywrap1) { j1 -= im1->h; }
+    ywrap2--; if(!ywrap2) { j2 -= im2->h; }
   }
   return diff;
 }
@@ -101,7 +116,7 @@ public:
       for(int i=inset;i<srcim->w-inset;i++) {
         int idx = srcim->ij_to_idx(i,j);
         srck[idx] = ::nn_search(srcim, i,j, Nsize, srcwrap);
-#if 1
+#if 0
         printf("%d: ", idx);
         for(int k=0;k<srck[idx].n;k++) {
           printf("%d(%d)%s", srck[idx]._idx[k], srck[idx]._err[k], k==K-1?"":",");
@@ -213,7 +228,7 @@ int main(int argc, char **argv)
          synth.srcwrap ? "on" : "off");
   int keeprows = (synth.Nsize+3)/2;
 
-  for(int version=0;version<8;version++) {
+  for(int version=0;version<VERSIONS;version++) {
     synth.init(version==0 ? 0 : synth.Nsize);
     for(int iterations=0;iterations<ITERATIONS;iterations++) {
       printf("\rout%d.png iteration %d/%d: E:", version, 1+iterations, ITERATIONS);
