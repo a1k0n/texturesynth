@@ -7,7 +7,7 @@
 // maximum generator iterations
 #define ITERATIONS 16
 // k-coherence search size
-#define _K_ 5
+#define _K_ 6
 
 // neighborhood difference
 // Nsize is the radius of pixels surrounding the source pixel.  
@@ -65,6 +65,7 @@ Kcoherence<_K_> nn_search(Img *srcim, int si, int sj, int Nsize, bool srcwrap)
       //if(x == si && y == sj)
       //  continue;
       unsigned diff = neighbor_diff(srcim, srcim, x,y, si,sj, Nsize);
+//      printf("sidx %d didx %d diff = %u\n", srcim->ij_to_idx(si,sj), srcim->ij_to_idx(x,y), diff);
       best.insert(srcim->ij_to_idx(x,y), diff);
     }
   }
@@ -100,10 +101,10 @@ public:
       for(int i=inset;i<srcim->w-inset;i++) {
         int idx = srcim->ij_to_idx(i,j);
         srck[idx] = ::nn_search(srcim, i,j, Nsize, srcwrap);
-#if 0
+#if 1
         printf("%d: ", idx);
         for(int k=0;k<srck[idx].n;k++) {
-          printf("%d(%d)%s", srck[idx]._idx[k], srck[k]._err[k], k==K-1?"":",");
+          printf("%d(%d)%s", srck[idx]._idx[k], srck[idx]._err[k], k==K-1?"":",");
         }
         printf("\n");
 #endif
@@ -134,9 +135,9 @@ public:
       srcim->idx_to_ij(kset[k],i,j);
       i = srcim->wrapw(i+offx);
       j = srcim->wraph(j+offy);
-      if(!srcwrap && i<Nsize || i>=srcim->w-Nsize)
+      if(!srcwrap && (i<Nsize || i>=srcim->w-Nsize))
         continue;
-      if(!srcwrap && j<Nsize || j>=srcim->h-Nsize)
+      if(!srcwrap && (j<Nsize || j>=srcim->h-Nsize))
         continue;
       unsigned diff = neighbor_diff(destim, srcim, di,dj, i,j, Nsize);
       if(diff < bestdiff) {
@@ -207,8 +208,8 @@ int main(int argc, char **argv)
   int w = atoi(argv[4]);
   int h = atoi(argv[5]);
   TextureSynth<_K_> synth(srcim, w, h, atoi(argv[3]), atoi(argv[2])?true:false);
-  printf("synthesizing %dx%d with neighborhood=%dx%d, srcwrap=%s\n", w,h, 
-         synth.Nsize, synth.Nsize,
+  printf("synthesizing %dx%d with neighborhood=%d (%d^2), srcwrap=%s\n", w,h,
+         synth.Nsize, synth.Nsize*2+1,
          synth.srcwrap ? "on" : "off");
   int keeprows = (synth.Nsize+3)/2;
 

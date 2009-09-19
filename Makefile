@@ -13,3 +13,5 @@ gen: $(OBJS)
 clean::
 	rm -f gen *.o out.png
 
+gen.o: kcoherence.h
+

@@ -22,6 +22,12 @@ public:
         t = _idx[i]; _idx[i] = _idx[i+1]; _idx[i+1] = t;
       }
     }
+#if 0
+    printf("insert: ");
+    for(int i=0;i<n;i++)
+      printf("%u(%u) ", _idx[i], _err[i]);
+    printf("\n");
+#endif
   }
 
   unsigned operator[](int n) const { return _idx[n]; }
