@@ -4,14 +4,10 @@
 #include "img.h"
 #include "kcoherence.h"
 
-// neighborhood for synthesis
-#define NEIGHBORHOOD 4
-// number of seam-rows to keep constant between different interchangable tiles
-#define KEEPROWS 4
 // maximum generator iterations
-#define ITERATIONS 8 //40
+#define ITERATIONS 16
 // k-coherence search size
-#define _K_ 11
+#define _K_ 5
 
 // neighborhood difference
 // Nsize is the radius of pixels surrounding the source pixel.  
@@ -199,8 +195,8 @@ public:
 
 int main(int argc, char **argv)
 {
-  if(argc < 2) {
-    printf("usage: %s <source image>\n", argv[0]);
+  if(argc < 6) {
+    printf("usage: %s <source image> <srcwrap> <neighborhood> <destw> <desth>\n", argv[0]);
     return -1;
   }
   srand(time(NULL));
@@ -208,19 +204,25 @@ int main(int argc, char **argv)
   Img *srcim = Img::load_png(argv[1]);
   printf("loaded %dx%d source\n", srcim->w, srcim->h);
 
-  TextureSynth<_K_> synth(srcim, 32, 32, NEIGHBORHOOD, true);
+  int w = atoi(argv[4]);
+  int h = atoi(argv[5]);
+  TextureSynth<_K_> synth(srcim, w, h, atoi(argv[3]), atoi(argv[2])?true:false);
+  printf("synthesizing %dx%d with neighborhood=%dx%d, srcwrap=%s\n", w,h, 
+         synth.Nsize, synth.Nsize,
+         synth.srcwrap ? "on" : "off");
+  int keeprows = (synth.Nsize+3)/2;
 
   for(int version=0;version<8;version++) {
-    synth.init(version==0 ? 0 : KEEPROWS);
+    synth.init(version==0 ? 0 : synth.Nsize);
     for(int iterations=0;iterations<ITERATIONS;iterations++) {
       printf("\rout%d.png iteration %d/%d: E:", version, 1+iterations, ITERATIONS);
-      printf("%u M:", synth.estep(version==0 ? 0 : KEEPROWS));
-      unsigned e = synth.mstep(version==0 ? 0 : KEEPROWS);
+      printf("%u M:", synth.estep(version==0 ? 0 : keeprows));
+      unsigned e = synth.mstep(version==0 ? 0 : keeprows);
       printf("%u\e[K", e);
       fflush(stdout);
       if(!e) break;
     }
-    printf(" final err: %d", synth.estep(version==0 ? 0 : KEEPROWS));
+    printf(" final err: %d", synth.estep(version==0 ? 0 : keeprows));
     char buf[20];
     sprintf(buf, "out%d.png", version);
     synth.dstim->save_png(buf);
