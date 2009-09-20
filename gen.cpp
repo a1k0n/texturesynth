@@ -8,8 +8,6 @@
 #define ITERATIONS 16
 // k-coherence search size
 #define _K_ 6
-// number of similar versions to generate
-#define VERSIONS 8
 
 // neighborhood difference
 // Nsize is the radius of pixels surrounding the source pixel.  
@@ -212,7 +210,7 @@ public:
 int main(int argc, char **argv)
 {
   if(argc < 6) {
-    printf("usage: %s <source image> <srcwrap> <neighborhood> <destw> <desth>\n", argv[0]);
+    printf("usage: %s <source image> <srcwrap> <neighborhood> <destw> <desth> [n]\n", argv[0]);
     return -1;
   }
   srand(time(NULL));
@@ -222,13 +220,14 @@ int main(int argc, char **argv)
 
   int w = atoi(argv[4]);
   int h = atoi(argv[5]);
+  int versions = argc > 6 ? atoi(argv[6]) : 1;
   TextureSynth<_K_> synth(srcim, w, h, atoi(argv[3]), atoi(argv[2])?true:false);
-  printf("synthesizing %dx%d with neighborhood=%d (%d^2), srcwrap=%s\n", w,h,
+  printf("synthesizing %d %dx%d with neighborhood=%d (%d^2), srcwrap=%s\n", versions, w,h,
          synth.Nsize, synth.Nsize*2+1,
          synth.srcwrap ? "on" : "off");
   int keeprows = (synth.Nsize+3)/2;
 
-  for(int version=0;version<VERSIONS;version++) {
+  for(int version=0;version<versions;version++) {
     synth.init(version==0 ? 0 : synth.Nsize);
     for(int iterations=0;iterations<ITERATIONS;iterations++) {
       printf("\rout%d.png iteration %d/%d: E:", version, 1+iterations, ITERATIONS);
