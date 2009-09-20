@@ -3,6 +3,23 @@
 #include <gd.h>
 #include "img.h"
 
+// this class exists only to statically initialize Img::_metric
+class CauchyMetricThinger
+{
+public:
+  CauchyMetricThinger() {
+    const float v = 30*30;
+    for(int i=0;i<256;i++)
+      Img::_metric[i] = log(1+(float)i*i/v);
+  }
+};
+
+static CauchyMetricThinger _thinger;
+
+Img::~Img() { delete[] _buf; }
+
+float Img::_metric[256];
+
 Img* Img::load_png(const char *fname)
 {
   FILE *fp = fopen(fname, "rb");

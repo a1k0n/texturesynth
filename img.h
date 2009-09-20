@@ -5,13 +5,14 @@ class Img
 public:
   unsigned *_buf;
   int w, h;
+  static float _metric[256];
 
   Img(int w, int h) {
     _buf = new unsigned[w*h];
     this->w = w; this->h = h;
   }
 
-  ~Img() { delete[] _buf; }
+  ~Img();
   // reference pixel at location
   unsigned& p(int i, int j) { return _buf[i+j*w]; }
   unsigned& p(int idx) { return _buf[idx]; }
@@ -34,11 +35,13 @@ public:
   }
   
   static float logcauchy(unsigned c1, unsigned c2) {
-    const float v = 30*30;
     int dr = (c1>>16) - (c2>>16);
     int dg = ((c1>>8)&255) - ((c2>>8)&255);
     int db = (c1&255) - (c2&255);
-    return log(1+dr*dr/v) + log(1+dg*dg/v) + log(1+db*db/v);
+    //return log(1+dr*dr/v) + log(1+dg*dg/v) + log(1+db*db/v);
+#define _abs(x) ((x)<0?-(x):(x))
+    return _metric[_abs(dr)] + _metric[_abs(dg)] + _metric[_abs(db)];
+#undef _abs
   }
 };
 
