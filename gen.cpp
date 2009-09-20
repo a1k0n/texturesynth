@@ -7,9 +7,7 @@
 // maximum generator iterations
 #define ITERATIONS 16
 // k-coherence search size
-#define _K_ 6
-// number of similar versions to generate
-#define VERSIONS 8
+#define _K_ 4
 
 // neighborhood difference
 // Nsize is the radius of pixels surrounding the source pixel.  
@@ -19,9 +17,9 @@
 // N N p N N
 // N N N N N
 // N N N N N
-unsigned neighbor_diff(Img *im1, Img *im2, int x1, int y1, int x2, int y2, int Nsize)
+float neighbor_diff(Img *im1, Img *im2, int x1, int y1, int x2, int y2, int Nsize)
 {
-  unsigned diff=0;
+  float diff=0;
   int j1 = im1->wraph(y1-Nsize);
   int j2 = im2->wraph(y2-Nsize);
   int i1 = im1->wrapw(x1-Nsize);
@@ -36,7 +34,7 @@ unsigned neighbor_diff(Img *im1, Img *im2, int x1, int y1, int x2, int y2, int N
     //printf("xy1=%d,%d xy2=%d,%d ij1=%d,%d ij2=%d,%d\n", x1,y1, x2,y2, i1,j2, i2,j2);
     for(int i=Nsize*2+1;i--;) {
       //printf("idx1=%d idx2=%d\n", idx1, idx2);
-      diff += Img::normsqr(im1->p(idx1++), im2->p(idx2++));
+      diff += Img::logcauchy(im1->p(idx1++), im2->p(idx2++));
       xwrap1--; if(!xwrap1) { idx1 -= im1->w; }
       xwrap2--; if(!xwrap2) { idx2 -= im2->w; }
     }
@@ -79,8 +77,8 @@ Kcoherence<_K_> nn_search(Img *srcim, int si, int sj, int Nsize, bool srcwrap)
     for(int x=inset; x < srcim->w - inset; x++) {
       //if(x == si && y == sj)
       //  continue;
-      unsigned diff = neighbor_diff(srcim, srcim, x,y, si,sj, Nsize);
-//      printf("sidx %d didx %d diff = %u\n", srcim->ij_to_idx(si,sj), srcim->ij_to_idx(x,y), diff);
+      float diff = neighbor_diff(srcim, srcim, x,y, si,sj, Nsize);
+      //printf("sidx %d didx %d diff = %f\n", srcim->ij_to_idx(si,sj), srcim->ij_to_idx(x,y), diff);
       best.insert(srcim->ij_to_idx(x,y), diff);
     }
   }
@@ -143,7 +141,7 @@ public:
   // nearest neighbor search, using a given coherence set
   void nn_search(Img *destim, int di, int dj, const Kcoherence<K> &kset,
                  int offx, int offy,
-                 unsigned &bestdiff,unsigned &bestidx)
+                 float &bestdiff,unsigned &bestidx)
   {
     for(int k=0;k<kset.n;k++) {
       int i,j;
@@ -154,7 +152,7 @@ public:
         continue;
       if(!srcwrap && (j<Nsize || j>=srcim->h-Nsize))
         continue;
-      unsigned diff = neighbor_diff(destim, srcim, di,dj, i,j, Nsize);
+      float diff = neighbor_diff(destim, srcim, di,dj, i,j, Nsize);
       if(diff < bestdiff) {
         bestdiff = diff;
         bestidx = srcim->ij_to_idx(i,j);
@@ -162,11 +160,11 @@ public:
     }
   }
 
-  unsigned estep(int offset) {
-    unsigned E=0;
+  float estep(int offset) {
+    float E=0;
     for(int j=offset;j<dstim->h;j++)
       for(int i=offset;i<dstim->w;i++) {
-        unsigned bestdiff = ~0, bestidx = 0;
+        float bestdiff = 1e30; unsigned bestidx = 0;
 
         // x,y are the target patch (in the z array)
         //int x,y; srcim->idx_to_ij(dstz->p(i,j),x,y);
@@ -180,14 +178,14 @@ public:
     return E;
   }
 
-  unsigned mstep(int offset) {
-    unsigned E=0;
+  float mstep(int offset) {
+    float E=0;
     bool changed = false;
     for(int j=offset;j<dstim->h;j++)
       for(int i=offset;i<dstim->w;i++) {
         // search k set of all neighborhood pixels to find best matching
         // neighborhood between src and dest(i,j)
-        unsigned bestdiff = ~0, bestidx = 0;
+        float bestdiff = 1e30; unsigned bestidx = 0;
         for(int nj=-Nsize;nj<=Nsize;nj++)
           for(int ni=-Nsize;ni<=Nsize;ni++) {
             int x=dstim->wrapw(i+ni), y=dstim->wraph(j+nj);
@@ -222,23 +220,24 @@ int main(int argc, char **argv)
 
   int w = atoi(argv[4]);
   int h = atoi(argv[5]);
+  int versions = argc > 6 ? atoi(argv[6]) : 1;
   TextureSynth<_K_> synth(srcim, w, h, atoi(argv[3]), atoi(argv[2])?true:false);
   printf("synthesizing %dx%d with neighborhood=%d (%d^2), srcwrap=%s\n", w,h,
          synth.Nsize, synth.Nsize*2+1,
          synth.srcwrap ? "on" : "off");
-  int keeprows = (synth.Nsize+3)/2;
+  int keeprows = synth.Nsize;
 
-  for(int version=0;version<VERSIONS;version++) {
-    synth.init(version==0 ? 0 : synth.Nsize);
+  for(int version=0;version<versions;version++) {
+    synth.init(version==0 ? 0 : keeprows);
     for(int iterations=0;iterations<ITERATIONS;iterations++) {
       printf("\rout%d.png iteration %d/%d: E:", version, 1+iterations, ITERATIONS);
-      printf("%u M:", synth.estep(version==0 ? 0 : keeprows));
-      unsigned e = synth.mstep(version==0 ? 0 : keeprows);
-      printf("%u\e[K", e);
+      printf("%f M:", synth.estep(version==0 ? 0 : keeprows));
+      float e = synth.mstep(version==0 ? 0 : keeprows);
+      printf("%f\e[K", e);
       fflush(stdout);
       if(!e) break;
     }
-    printf(" final err: %d", synth.estep(version==0 ? 0 : keeprows));
+    printf(" final err: %f", synth.estep(version==0 ? 0 : keeprows));
     char buf[20];
     sprintf(buf, "out%d.png", version);
     synth.dstim->save_png(buf);

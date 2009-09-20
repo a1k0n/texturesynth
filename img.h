@@ -1,3 +1,5 @@
+#include <math.h>
+
 class Img
 {
 public:
@@ -29,6 +31,14 @@ public:
     int dg = ((c1>>8)&255) - ((c2>>8)&255);
     int db = (c1&255) - (c2&255);
     return dr*dr + dg*dg + db*db;
+  }
+  
+  static float logcauchy(unsigned c1, unsigned c2) {
+    const float v = 30*30;
+    int dr = (c1>>16) - (c2>>16);
+    int dg = ((c1>>8)&255) - ((c2>>8)&255);
+    int db = (c1&255) - (c2&255);
+    return log(1+dr*dr/v) + log(1+dg*dg/v) + log(1+db*db/v);
   }
 };
 

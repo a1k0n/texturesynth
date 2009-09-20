@@ -3,11 +3,11 @@ class Kcoherence
 {
 public:
   unsigned _idx[N];
-  unsigned _err[N];
+  float _err[N];
   int n;
 
   Kcoherence() { n=0; }
-  void insert(unsigned idx, unsigned err) {
+  void insert(unsigned idx, float err) {
     // error is already greater than any member
     if(n==N && err > _err[n-1])
       return;
@@ -18,8 +18,8 @@ public:
     // i guess this could be a heap but... that'd be a waste
     for(int i=n-2;i>=0;i--) {
       if(_err[i] > _err[i+1]) {
-        unsigned t = _err[i]; _err[i] = _err[i+1]; _err[i+1] = t;
-        t = _idx[i]; _idx[i] = _idx[i+1]; _idx[i+1] = t;
+        { float t = _err[i]; _err[i] = _err[i+1]; _err[i+1] = t; }
+        unsigned t = _idx[i]; _idx[i] = _idx[i+1]; _idx[i+1] = t;
       }
     }
 #if 0
